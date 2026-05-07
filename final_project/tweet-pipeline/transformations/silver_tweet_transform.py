@@ -1,4 +1,8 @@
 # Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "2"
+# ///
 # MAGIC %md
 # MAGIC # Silver Layer: Tweet Preprocessing and Mention Extraction
 # MAGIC
@@ -32,7 +36,13 @@
 # - pyspark.pipelines (as dp)
 # - pyspark.sql.types and pyspark.sql.functions
 # - re module for regex operations
-
+import pyspark.pipelines as dp
+from pyspark.sql.types import StringType, ArrayType
+from pyspark.sql.functions import (
+    col, current_timestamp, explode_outer, 
+    regexp_replace, to_timestamp, lower, udf
+)
+import re
 
 # COMMAND ----------
 
@@ -44,6 +54,10 @@
 # COMMAND ----------
 
 # TODO: Create streaming table definition
+dp.create_streaming_table(
+    name="tweets_silver",
+    comment="Cleaned tweets with extracted @mentions, one row per mention"
+)
 
 
 # COMMAND ----------
@@ -62,6 +76,12 @@
 # COMMAND ----------
 
 # TODO: Define find_mentions function and create UDF
+def find_mentions(text):
+    if text is None:
+        return []
+    return re.findall(r"@[\w]+", text)
+
+find_mentions_udf = udf(find_mentions, ArrayType(StringType()))
 
 
 # COMMAND ----------
@@ -83,7 +103,24 @@
 # COMMAND ----------
 
 # TODO: Define append_flow function for silver transformation
-
+@dp.append_flow(target="tweets_silver")
+def silver_transformation_flow():
+    return (
+        spark.readStream
+        .table("tweets_bronze")
+        .withColumn("cleaned_text", regexp_replace(col("text"), "@\\S+", ""))
+        .withColumn("mentions", find_mentions_udf(col("text")))
+        .withColumn("mention", explode_outer(col("mentions")))
+        .withColumn("mention", lower(col("mention")))
+        .withColumn("timestamp", to_timestamp(col("date"), "EEE MMM dd HH:mm:ss zzz yyyy"))
+        .select(
+            col("timestamp"),
+            col("mention"),
+            col("cleaned_text"),
+            col("text"),
+            col("sentiment")
+        )
+    )
 
 # COMMAND ----------
 

@@ -1,4 +1,8 @@
 # Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "2"
+# ///
 # MAGIC %md
 # MAGIC # Sentiment Model Performance Analysis
 # MAGIC
@@ -30,7 +34,12 @@
 # - delta.tables.DeltaTable
 # - matplotlib.pyplot
 # - sklearn.metrics (confusion_matrix, classification_report, ConfusionMatrixDisplay)
-
+import pandas as pd
+import mlflow
+from mlflow.tracking import MlflowClient
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix, classification_report, ConfusionMatrixDisplay
+from delta.tables import DeltaTable
 
 # COMMAND ----------
 
@@ -45,7 +54,9 @@
 # COMMAND ----------
 
 # TODO: Load gold table
-
+# Load tweets_gold table
+gold_df = spark.read.format("delta").table("workspace.default.tweets_gold")
+display(gold_df.limit(5))
 
 # COMMAND ----------
 
@@ -64,7 +75,15 @@
 # COMMAND ----------
 
 # TODO: Generate classification report
+# Convert to pandas and compute metrics
+gold_pd = gold_df.select("sentiment_id", "predicted_sentiment_id").toPandas()
 
+y_true = gold_pd["sentiment_id"]
+y_pred = gold_pd["predicted_sentiment_id"]
+
+target_names = ["Negative", "Positive"]
+report = classification_report(y_true, y_pred, target_names=target_names, output_dict=True)
+print(classification_report(y_true, y_pred, target_names=target_names))
 
 # COMMAND ----------
 
@@ -85,7 +104,14 @@
 # COMMAND ----------
 
 # TODO: Create and display confusion matrix
-
+# Create confusion matrix
+cm = confusion_matrix(y_true, y_pred)
+disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=target_names)
+fig, ax = plt.subplots(figsize=(8, 6))
+disp.plot(ax=ax)
+plt.title("Sentiment Model Confusion Matrix")
+plt.savefig("/tmp/confusion_matrix.png")
+plt.show()
 
 # COMMAND ----------
 
@@ -110,7 +136,16 @@
 # COMMAND ----------
 
 # TODO: Log metrics and artifacts to MLflow
+# Log to MLflow
+mlflow.set_registry_uri("databricks-uc")
 
+# Start MLflow run
+with mlflow.start_run(run_name="tweet_sentiment_analysis"):
+    mlflow.log_metric("accuracy", report["accuracy"])
+    mlflow.log_param("model_name", "workspace.default.small_sentiment_model")
+    mlflow.log_param("model_version", 1)
+    mlflow.log_artifact("/tmp/confusion_matrix.png")
+    print(f"✅ MLflow run complete! Accuracy: {report['accuracy']:.2%}")
 
 # COMMAND ----------
 

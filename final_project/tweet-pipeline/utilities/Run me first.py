@@ -1,4 +1,8 @@
 # Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "2"
+# ///
 # MAGIC %sql
 # MAGIC DROP VOLUME IF EXISTS workspace.default.checkpoints;
 # MAGIC
@@ -32,7 +36,7 @@ mlflow.set_registry_uri("databricks-uc")
 
 # Define model details
 HF_MODEL_NAME = "distilbert/distilbert-base-uncased-finetuned-sst-2-english"
-UC_MODEL_NAME = "workspace.default.small_sentiment_model"
+UC_MODEL_NAME = "workspace.default.tweet_sentiment_model"
 
 print(f"🤗 Loading Hugging Face model: {HF_MODEL_NAME}")
 print(f"   This may take a few minutes on first download...")
@@ -123,17 +127,17 @@ except Exception as e:
 
 # COMMAND ----------
 
+# DBTITLE 1,Cell 8
 #Load the model from the URI above and execute a test inference 
 pyfunc_model = mlflow.pyfunc.load_model(model_uri)
 
-# The model is logged with an input example
-input_data = pyfunc_model.input_example
+# Use a simple text input for sentiment classification
+input_data = ["This is a great day!"]
 
-# Verify the model with the provided input data using the logged dependencies.
-# For more details, refer to:
-# https://mlflow.org/docs/latest/models.html#validate-models-before-deployment
-mlflow.models.predict(
-    model_uri=model_uri,
-    input_data=input_data,
-    env_manager="uv",
-)
+# Predict using the loaded model
+# For transformers models, the pyfunc wrapper accepts text inputs directly
+prediction = pyfunc_model.predict(input_data)
+
+print(f"✅ Model inference successful!")
+print(f"   Input: {input_data[0]}")
+print(f"   Prediction: {prediction}")

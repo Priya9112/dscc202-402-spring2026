@@ -1,0 +1,55 @@
+{
+  "job_id": 288986435615940,
+  "creator_user_name": "klokasreepriya9112003@gmail.com",
+  "run_as_user_name": "klokasreepriya9112003@gmail.com",
+  "run_as_owner": true,
+  "settings": {
+    "name": "Tweet Sentiment Pipeline Job",
+    "email_notifications": {
+      "no_alert_for_skipped_runs": false
+    },
+    "webhook_notifications": {},
+    "timeout_seconds": 0,
+    "schedule": {
+      "quartz_cron_expression": "5 0 2 * * ?",
+      "timezone_id": "UTC",
+      "pause_status": "UNPAUSED"
+    },
+    "max_concurrent_runs": 1,
+    "tasks": [
+      {
+        "task_key": "Run_Pipeline",
+        "run_if": "ALL_SUCCESS",
+        "pipeline_task": {
+          "pipeline_id": "209762b2-0606-48ad-9262-1fe5e0305860",
+          "full_refresh": false
+        },
+        "timeout_seconds": 0,
+        "email_notifications": {},
+        "webhook_notifications": {}
+      },
+      {
+        "task_key": "Refresh_Dashboard",
+        "depends_on": [
+          {
+            "task_key": "Run_Pipeline"
+          }
+        ],
+        "run_if": "ALL_SUCCESS",
+        "dashboard_task": {
+          "subscription": {},
+          "warehouse_id": "70468b225747c0df",
+          "dashboard_id": "01f14804e7d014608c52c5ac6db64634"
+        },
+        "timeout_seconds": 0,
+        "email_notifications": {}
+      }
+    ],
+    "format": "MULTI_TASK",
+    "queue": {
+      "enabled": true
+    },
+    "performance_target": "PERFORMANCE_OPTIMIZED"
+  },
+  "created_time": 1777946408232
+}
